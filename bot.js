@@ -2,7 +2,8 @@ import fs from "fs/promises";
 import path from "path";
 import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
-import { getSportsNewsFromFightnews, getSportsNewsFromICTV } from "./parser.js";
+import { getSportsNewsFromICTV } from "./getSportsNewsFromICTV.js";
+import { getSportsNewsFromFightnews } from "./getSportsNewsFromFightnews.js";
 
 dotenv.config();
 
@@ -86,16 +87,39 @@ async function sendNewsToChannelFromFightnews() {
       continue;
     }
 
-    const msg = `*${news.title}*\n\n${news.description}`;
-
     try {
       if (news.img) {
-        await bot.telegram.sendPhoto(channelId, news.img, {
-          caption: msg,
+        // Заголовок жирный, обрезаем если слишком длинный
+        const caption =
+          news.title.length > 1024
+            ? `*${news.title.slice(0, 1020)}...*`
+            : `*${news.title}*`;
+
+        // Отправляем фото с заголовком и получаем результат (с сообщением)
+        const sentMessage = await bot.telegram.sendPhoto(channelId, news.img, {
+          caption,
           parse_mode: "Markdown",
         });
+
+        // Если есть описание — отправляем его ответом на фото
+        if (news.description && news.description.trim().length > 0) {
+          const desc =
+            news.description.length > 4096
+              ? news.description.slice(0, 4093) + "..."
+              : news.description;
+
+          await bot.telegram.sendMessage(channelId, desc, {
+            reply_to_message_id: sentMessage.message_id,
+          });
+        }
       } else {
-        await bot.telegram.sendMessage(channelId, msg, {
+        // Если фото нет — отправляем всё в одном сообщении с жирным заголовком и описанием
+        const msg = `*${news.title}*\n\n${news.description}`;
+        const maxLength = 4096;
+        const textToSend =
+          msg.length > maxLength ? msg.slice(0, maxLength - 3) + "..." : msg;
+
+        await bot.telegram.sendMessage(channelId, textToSend, {
           parse_mode: "Markdown",
         });
       }
