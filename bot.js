@@ -4,6 +4,7 @@ import { Telegraf } from "telegraf";
 import dotenv from "dotenv";
 import { getSportsNewsFromICTV } from "./getSportsNewsFromICTV.js";
 import { getSportsNewsFromFightnews } from "./getSportsNewsFromFightnews.js";
+import { getSportsImgs } from "./getSportsImgs.js";
 
 dotenv.config();
 
@@ -28,6 +29,36 @@ async function saveSentNews(sentLinks) {
     "utf-8"
   );
 }
+export async function sendSportsImg() {
+  const imgs = await getSportsImgs();
+  if (imgs.length === 0) {
+    console.dir("Нет картинок для отправки.");
+    return;
+  }
+
+  const sentLinks = await loadSentNews();
+
+  for (const imgUrl of imgs) {
+    if (sentLinks.includes(imgUrl)) {
+      continue;
+    }
+
+    try {
+      await bot.telegram.sendPhoto(channelId, imgUrl, {
+        caption: "Немного юмора 😁",
+        parse_mode: "Markdown",
+      });
+
+      sentLinks.push(imgUrl);
+      await saveSentNews(sentLinks);
+      console.dir("Отправлено:", imgUrl);
+      break; // только одну картинку за раз
+    } catch (err) {
+      console.dir("Ошибка отправки фото:", err);
+    }
+  }
+}
+
 async function sendNewsToChannelFromICTV() {
   const newsList = await getSportsNewsFromICTV();
 
@@ -168,6 +199,13 @@ bot.command("news", async (ctx) => {
 });
 sendNewsToChannelFromFightnews();
 sendNewsToChannelFromICTV();
+sendSportsImg()
 setInterval(() => {
   sendNewsToChannelFromFightnews();
-}, 3 * 60 * 60 * 1000);
+}, 1 * 60 * 60 * 1000);
+setInterval(() => {
+  sendNewsToChannelFromICTV();
+}, 1.5 * 60 * 60 * 1000);
+setInterval(() => {
+  sendSportsImg()
+}, 0.5 * 60 * 60 * 1000);

@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_NAME}_app
+    volumes:
+      - app_volumes:/app/volumes
+    restart: unless-stopped
+    command: npm run dev
+    env_file:
+      - .env
+    networks:
+      - default_network
+volumes:
+  app_volumes:
+
+networks:
+  default_network:
+    name: ${CONTAINER_NAME}_network
+    driver: bridge
